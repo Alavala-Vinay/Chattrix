@@ -23,7 +23,7 @@ app.use(cookieParser());
 // ✅ Correct CORS setup
 app.use(
   cors({
-    origin: "http://localhost:5173", // your frontend
+    origin: "https://chattrix-front.vercel.app", // your frontend
     credentials: true,               // allow cookies, headers
   })
 );
