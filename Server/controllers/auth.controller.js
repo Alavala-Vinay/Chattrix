@@ -1,3 +1,4 @@
+// controllers/auth.controller.js
 import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
@@ -13,7 +14,9 @@ export const signup = async (req, res) => {
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 6 characters" });
     }
 
     const existingUser = await User.findOne({ email });
@@ -30,17 +33,18 @@ export const signup = async (req, res) => {
       password: hashedPassword,
     });
 
+    // Generate JWT & set cookie
     generateToken(newUser._id, res);
 
-    res.status(201).json({
+    return res.status(201).json({
       _id: newUser._id,
       fullName: newUser.fullName,
       email: newUser.email,
-      profilePic: newUser.profilePic,
+      profilePic: newUser.profilePic || null,
     });
   } catch (error) {
-    console.error("Signup error:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Signup error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
@@ -50,21 +54,27 @@ export const login = async (req, res) => {
 
   try {
     const user = await User.findOne({ email });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // Generate JWT & set cookie
     generateToken(user._id, res);
 
-    res.status(200).json({
+    return res.status(200).json({
       _id: user._id,
       fullName: user.fullName,
       email: user.email,
-      profilePic: user.profilePic,
+      profilePic: user.profilePic || null,
     });
   } catch (error) {
-    console.error("Login error:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Login error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
@@ -74,14 +84,14 @@ export const logout = (req, res) => {
     res.cookie("jwt", "", {
       httpOnly: true,
       expires: new Date(0),
-      sameSite: "Lax",
-      secure: process.env.NODE_ENV === "production",
+      sameSite: "None", // important for cross-origin cookies
+      secure: process.env.NODE_ENV === "production", // needed for vercel
     });
 
-    res.status(200).json({ message: "Logged out successfully" });
+    return res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
-    console.error("Logout error:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Logout error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
@@ -95,26 +105,33 @@ export const updateProfile = async (req, res) => {
       return res.status(400).json({ message: "Profile pic is required" });
     }
 
-    const uploadRes = await cloudinary.uploader.upload(profilePic);
+    const uploadRes = await cloudinary.uploader.upload(profilePic, {
+      folder: "profile_pics",
+    });
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { profilePic: uploadRes.secure_url },
       { new: true }
-    );
+    ).select("-password"); // don’t return password
 
-    res.status(200).json(updatedUser);
+    return res.status(200).json(updatedUser);
   } catch (error) {
-    console.error("Update Profile Error:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Update Profile Error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
 // Check Auth
 export const checkAuth = (req, res) => {
   try {
-    res.status(200).json(req.user);
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    return res.status(200).json(req.user);
   } catch (error) {
-    console.error("CheckAuth error:", error.message);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("CheckAuth error:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
