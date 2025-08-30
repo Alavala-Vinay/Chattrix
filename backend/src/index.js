@@ -14,6 +14,7 @@ dotenv.config();
 const PORT = process.env.PORT || 5000; // fallback for local dev
 const __dirname = path.resolve();
 
+
 // ---------------------- Middlewares ----------------------
 app.use(express.json());
 app.use(cookieParser());
@@ -30,6 +31,11 @@ app.use(
     credentials: true,
   })
 );
+
+
+app.get("/", (req, res) => {
+  res.json({ message: "Hello from Express on Vercel" });
+});
 
 // ---------------------- API Routes ----------------------
 app.use("/api/auth", authRoutes);
