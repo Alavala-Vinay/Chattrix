@@ -21,7 +21,7 @@ app.use(cookieParser());
 
 // ✅ CORS: only allow defined origins
 const allowedOrigins = [
-  "http://localhost:5173", // local frontend
+  "https://chattrix-front.vercel.app", // local frontend
   process.env.CLIENT_URL,  // production frontend (from .env)
 ].filter(Boolean);
 
