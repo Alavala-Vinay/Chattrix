@@ -7,34 +7,49 @@ import path from "path";
 import { connectDB } from "./lib/db.js";
 import authRoutes from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
-import { app, server } from "./lib/socket.js"; // using socket server
+import { app, server } from "./lib/socket.js"; // socket-enabled app + server
 
 dotenv.config();
 
-const PORT = process.env.PORT || 5000; // fallback for local dev
+const PORT = process.env.PORT || 5000;
 const __dirname = path.resolve();
-
 
 // ---------------------- Middlewares ----------------------
 app.use(express.json());
 app.use(cookieParser());
 
-// ✅ CORS: only allow defined origins
+// ✅ CORS: allow local + production frontend
 const allowedOrigins = [
-  "https://chattrix-front.vercel.app", // local frontend
-  process.env.CLIENT_URL,  // production frontend (from .env)
+  "http://localhost:5173",              // local dev frontend
+  "https://chattrix-front.vercel.app",  // deployed frontend on Vercel
+  process.env.CLIENT_URL,               // fallback from .env
 ].filter(Boolean);
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: function (origin, callback) {
+      // allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        console.warn("❌ Blocked by CORS:", origin);
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
+// ✅ Explicitly handle preflight requests
+app.options("*", cors());
 
+// ---------------------- Test Route ----------------------
 app.get("/", (req, res) => {
-  res.json({ message: "Hello from Express on Vercel" });
+  res.json({ message: "Hello from Chattrix backend ✅" });
 });
 
 // ---------------------- API Routes ----------------------
